@@ -7,7 +7,9 @@
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"db:migrate:dev": "drizzle-kit generate && wrangler d1 migrations apply DB --local",
+		"db:migrate": "drizzle-kit generate && wrangler d1 migrations apply DB",
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.12.4",
