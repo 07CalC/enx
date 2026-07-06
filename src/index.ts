@@ -3,6 +3,7 @@ import { authRouter } from "./auth";
 import { projectRouter } from "./projects";
 import { environmentRouter } from "./environments";
 import { variableRouter } from "./variables";
+import { apiKeyRouter } from "./api-keys";
 
 export type Bindings = {
 	DB: D1Database;
@@ -22,5 +23,6 @@ app.route("/auth", authRouter);
 app.route("/projects", projectRouter);
 app.route("/projects/:projectName/environments", environmentRouter);
 app.route("/projects/:projectName/environments/:environmentName/variables", variableRouter);
+app.route("/api-keys", apiKeyRouter);
 
 export default app;

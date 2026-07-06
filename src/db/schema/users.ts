@@ -16,6 +16,9 @@ export const users = sqliteTable("users", {
   uniqueIndex("users_email_unique").on(table.email)
 ])
 
+import { apiKeys } from "./apiKeys";
+
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
+  apiKeys: many(apiKeys),
 }))

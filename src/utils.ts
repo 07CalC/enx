@@ -67,6 +67,24 @@ export async function hashPassword(password: string): Promise<string> {
   ].join("$");
 }
 
+export async function hashApiKey(key: string): Promise<string> {
+  const encoded = new TextEncoder().encode(key);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function generateApiKey(): Promise<{ key: string; hash: string; prefix: string }> {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const key = "enx_" + btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  const hash = await hashApiKey(key);
+  const prefix = key.substring(0, 8) + "...";
+  return { key, hash, prefix };
+}
+
 export async function verifyPassword(
   password: string,
   storedHash: string

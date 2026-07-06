@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { Bindings } from ".";
 import { getDB } from "./db";
-import { users } from "./db/schema";
-import { hashPassword, signJWT, verifyJWT, verifyPassword } from "./utils";
+import { users, apiKeys } from "./db/schema";
+import { hashPassword, signJWT, verifyJWT, verifyPassword, hashApiKey } from "./utils";
 import { getCookie, setCookie } from "hono/cookie"
 import { zValidator } from "@hono/zod-validator"
 import z from "zod"
+import { eq } from "drizzle-orm"
 
 type GoogleTokenResponse = {
   access_token: string
@@ -323,6 +324,25 @@ authRouter.get("/me", async (c) => {
 })
 
 export async function requireAuth(c: any, next: any) {
+  const apiKeyHeader = c.req.header("x-api-key") || c.req.header("Authorization")?.replace(/^Bearer\s+/i, "");
+
+  if (apiKeyHeader) {
+    const keyHash = await hashApiKey(apiKeyHeader);
+    const db = getDB(c.env.DB);
+    const key = await db.query.apiKeys.findFirst({
+      where: (apiKeys, { eq }) => eq(apiKeys.keyHash, keyHash),
+    });
+
+    if (!key) {
+      return c.json({ data: null, error: { message: "Invalid API key", statusCode: 401 } }, 401);
+    }
+
+    c.set("userId", key.userId);
+    db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, key.id)).run();
+    await next();
+    return;
+  }
+
   const token = getCookie(c, "enx-token");
   if (!token) {
     return c.json({ data: null, error: { message: "Not authenticated", statusCode: 401 } }, 401);
