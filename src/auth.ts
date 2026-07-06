@@ -294,7 +294,6 @@ authRouter.get("/me", async (c) => {
       id: true,
       email: true,
       name: true,
-      authProvider: true,
     },
     where: (users, { eq }) => eq(users.id, userId),
   });
@@ -322,3 +321,30 @@ authRouter.get("/me", async (c) => {
     200
   );
 })
+
+export async function requireAuth(c: any, next: any) {
+  const token = getCookie(c, "enx-token");
+  if (!token) {
+    return c.json({ data: null, error: { message: "Not authenticated", statusCode: 401 } }, 401);
+  }
+
+  const userId = await verifyJWT(token, c.env.JWT_SECRET);
+  if (!userId) {
+    return c.json({ data: null, error: { message: "Invalid token", statusCode: 401 } }, 401);
+  }
+
+  const db = getDB(c.env.DB);
+  const user = await db.query.users.findFirst({
+    columns: {
+      id: true,
+    },
+    where: (users, { eq }) => eq(users.id, userId),
+  });
+
+  if (!user) {
+    return c.json({ data: null, error: { message: "User not found", statusCode: 404 } }, 404);
+  }
+
+  c.set("userId", userId);
+  await next();
+}

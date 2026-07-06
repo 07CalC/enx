@@ -3,7 +3,7 @@ import { sign, verify } from "hono/jwt"
 export async function signJWT(payload: string, secret: string): Promise<string> {
   return sign({
     sub: payload,
-    exp: 7 * 24 * 60 * 60,
+    exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).getTime() / 1000,
   },
     secret);
 }
