@@ -9,7 +9,7 @@
 		"test": "vitest",
 		"cf-typegen": "wrangler types",
 		"db:migrate:dev": "drizzle-kit generate && wrangler d1 migrations apply DB --local",
-		"db:migrate": "drizzle-kit generate && wrangler d1 migrations apply DB",
+		"db:migrate": "drizzle-kit generate && wrangler d1 migrations apply DB"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.12.4",
@@ -19,8 +19,10 @@
 		"wrangler": "^4.107.0"
 	},
 	"dependencies": {
+		"@hono/zod-validator": "^0.8.0",
 		"drizzle-kit": "^0.31.10",
 		"drizzle-orm": "^0.45.2",
-		"hono": "^4.12.28"
+		"hono": "^4.12.28",
+		"zod": "^4.4.3"
 	}
 }

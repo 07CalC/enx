@@ -1,0 +1,261 @@
+import { Hono } from "hono";
+import { Bindings } from ".";
+import { getDB } from "./db";
+import { users } from "./db/schema";
+import { hashPassword, signJWT, verifyPassword } from "./utils";
+import { setCookie } from "hono/cookie"
+import { zValidator } from "@hono/zod-validator"
+import z from "zod"
+
+type GoogleTokenResponse = {
+  access_token: string
+  expires_in: number
+}
+
+type GoogleUserInfo = {
+  id: string
+  email: string
+  verified_email: boolean
+  name: string
+  given_name: string
+  picture: string
+}
+
+
+export const authRouter = new Hono<{ Bindings: Bindings }>()
+
+
+authRouter.get("/google", async (c) => {
+  if (!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET || !c.env.GOOGLE_CLIENT_REDIRECT_URL) {
+    return c.json({ data: null, error: { message: "Google OAuth is disabled, add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_CLIENT_REDIRECT_URL to enable", statusCode: 500 } }, 500);
+  }
+  const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+  googleAuthUrl.search = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID ?? '',
+    redirect_uri: process.env.GOOGLE_CLIENT_REDIRECT_URL ?? '',
+    response_type: 'code',
+    scope: 'openid email profile',
+  }).toString()
+
+  return c.redirect(googleAuthUrl.toString())
+})
+
+authRouter.get("/google/callback", async (c) => {
+  const code = c.req.query("code")
+  if (!code) {
+    return c.json({ error: "Missing code" }, 400)
+  } const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID ?? '',
+      client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+      redirect_uri: process.env.GOOGLE_CLIENT_REDIRECT_URL ?? '',
+      grant_type: 'authorization_code',
+    }),
+  })
+
+  const tokenData: GoogleTokenResponse = await tokenResponse.json()
+
+  const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: {
+      'Authorization': `Bearer ${tokenData.access_token}`,
+    },
+  })
+  const userInfo: GoogleUserInfo = await userInfoResponse.json()
+
+  if (!userInfo.email || !userInfo.name) {
+    return c.json({
+      data: null,
+      error: {
+        message: "Failed to retrieve user info from Google",
+        statusCode: 500,
+      },
+    }, 500)
+  }
+  const db = getDB(c.env.DB)
+  const [user] = await db.insert(users).values({
+    email: userInfo.email,
+    name: userInfo.name,
+    authProvider: "google",
+  }).returning().onConflictDoUpdate({
+    target: users.email,
+    set: {
+      name: userInfo.name,
+      authProvider: "google",
+    },
+  })
+
+  const jwt = await signJWT(user.id, c.env.JWT_SECRET)
+  setCookie(c, "enx-token", jwt, {
+    httpOnly: true,
+    secure: true,
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  })
+
+  c.json({
+    data: {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        authProvider: user.authProvider,
+      },
+      token: jwt,
+    },
+    error: null,
+  }, 200)
+})
+
+
+authRouter.post(
+  "/email",
+  zValidator(
+    "json",
+    z.object({
+      email: z.email(),
+      name: z.string().min(1).optional(),
+      password: z.string().min(6),
+    }),
+    (result, c) => {
+      if (!result.success) {
+        return c.json(
+          {
+            data: null,
+            error: {
+              message: result.error.message,
+              statusCode: 400,
+            },
+          },
+          400
+        );
+      }
+    }
+  ),
+  async (c) => {
+    const { email, name, password } = c.req.valid("json");
+    const db = getDB(c.env.DB);
+
+    const existingUser = await db.query.users.findFirst({
+      columns: {
+        id: true,
+        email: true,
+        name: true,
+        passwordHash: true,
+      },
+      where: (users, { eq }) => eq(users.email, email),
+    });
+
+    if (existingUser) {
+      if (!existingUser.passwordHash) {
+        return c.json(
+          {
+            data: null,
+            error: {
+              message:
+                "This account was created using another sign-in method.",
+              statusCode: 400,
+            },
+          },
+          400
+        );
+      }
+
+      const valid = await verifyPassword(
+        password,
+        existingUser.passwordHash
+      );
+
+      if (!valid) {
+        return c.json(
+          {
+            data: null,
+            error: {
+              message: "Invalid email or password",
+              statusCode: 401,
+            },
+          },
+          401
+        );
+      }
+
+      const jwt = await signJWT(
+        existingUser.id,
+        c.env.JWT_SECRET
+      );
+
+      setCookie(c, "enx-token", jwt, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+        expires: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000
+        ),
+      });
+
+      return c.json(
+        {
+          data: {
+            user: {
+              id: existingUser.id,
+              email: existingUser.email,
+              name: existingUser.name,
+              authProvider: "email",
+            },
+            token: jwt,
+          },
+          error: null,
+        },
+        200
+      );
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const [user] = await db
+      .insert(users)
+      .values({
+        email,
+        name,
+        passwordHash,
+      })
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+      });
+
+    const jwt = await signJWT(
+      user.id,
+      c.env.JWT_SECRET
+    );
+
+    setCookie(c, "enx-token", jwt, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Lax",
+      expires: new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ),
+    });
+
+    return c.json(
+      {
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            authProvider: "email",
+          },
+          token: jwt,
+        },
+        error: null,
+      },
+      201
+    );
+  }
+);
