@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { Bindings } from ".";
 import { getDB } from "./db";
 import { users } from "./db/schema";
-import { hashPassword, signJWT, verifyPassword } from "./utils";
-import { setCookie } from "hono/cookie"
+import { hashPassword, signJWT, verifyJWT, verifyPassword } from "./utils";
+import { getCookie, setCookie } from "hono/cookie"
 import { zValidator } from "@hono/zod-validator"
 import z from "zod"
 
@@ -259,3 +259,66 @@ authRouter.post(
     );
   }
 );
+
+authRouter.get("/me", async (c) => {
+  const token = getCookie(c, "enx-token");
+  if (!token) {
+    return c.json(
+      {
+        data: null,
+        error: {
+          message: "Not authenticated",
+          statusCode: 401,
+        },
+      },
+      401
+    );
+  }
+
+  const userId = await verifyJWT(token, c.env.JWT_SECRET);
+  if (!userId) {
+    return c.json(
+      {
+        data: null,
+        error: {
+          message: "Invalid token",
+          statusCode: 401,
+        },
+      },
+      401
+    );
+  }
+  const db = getDB(c.env.DB);
+  const user = await db.query.users.findFirst({
+    columns: {
+      id: true,
+      email: true,
+      name: true,
+      authProvider: true,
+    },
+    where: (users, { eq }) => eq(users.id, userId),
+  });
+
+  if (!user) {
+    return c.json(
+      {
+        data: null,
+        error: {
+          message: "User not found",
+          statusCode: 404,
+        },
+      },
+      404
+    );
+  }
+
+  return c.json(
+    {
+      data: {
+        user,
+      },
+      error: null,
+    },
+    200
+  );
+})
