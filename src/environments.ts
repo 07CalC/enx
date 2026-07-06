@@ -5,7 +5,7 @@ import { projects, environments } from "./db/schema"
 import { requireAuth } from "./auth"
 import { zValidator } from "@hono/zod-validator"
 import z from "zod"
-import { and, eq } from "drizzle-orm"
+import { and, DrizzleQueryError, eq } from "drizzle-orm"
 
 export const environmentRouter = new Hono<{ Bindings: Bindings; Variables: { userId: string } }>()
 
@@ -72,7 +72,10 @@ environmentRouter.post(
       }).returning()
 
       return c.json({ data: { environment }, error: null }, 201)
-    } catch {
+    } catch (error) {
+      if (error instanceof DrizzleQueryError && error.cause?.message.includes("UNIQUE constraint")) {
+        return c.json({ data: null, error: { message: "An environment with this name already exists", statusCode: 409 } }, 409)
+      }
       return c.json({ data: null, error: { message: "Internal server error", statusCode: 500 } }, 500)
     }
   }
@@ -152,7 +155,10 @@ environmentRouter.patch(
       }
 
       return c.json({ data: { environment }, error: null }, 200)
-    } catch {
+    } catch (error) {
+      if (error instanceof DrizzleQueryError && error.cause?.message.includes("UNIQUE constraint")) {
+        return c.json({ data: null, error: { message: "An environment with this name already exists", statusCode: 409 } }, 409)
+      }
       return c.json({ data: null, error: { message: "Internal server error", statusCode: 500 } }, 500)
     }
   }

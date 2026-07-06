@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { environments } from "./environments";
 import { relations } from "drizzle-orm";
 
@@ -16,6 +16,7 @@ export const variables = sqliteTable("variables", {
 }, (table) => [
   index("variables_key_index").on(table.key),
   index("variables_environment_id_index").on(table.environmentId),
+  uniqueIndex("variables_environment_id_key_unique").on(table.environmentId, table.key)
 ])
 
 

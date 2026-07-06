@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `variables_environment_id_key_unique` ON `variables` (`environment_id`,`key`);

@@ -5,7 +5,7 @@ import { projects } from "./db/schema"
 import { requireAuth } from "./auth"
 import { zValidator } from "@hono/zod-validator"
 import z from "zod"
-import { and, eq } from "drizzle-orm"
+import { and, DrizzleQueryError, eq } from "drizzle-orm"
 
 export const projectRouter = new Hono<{ Bindings: Bindings; Variables: { userId: string } }>()
 
@@ -51,10 +51,19 @@ projectRouter.post(
       const [project] = await db.insert(projects).values({
         userId,
         name,
-      }).returning()
+      }).returning({
+        id: projects.id,
+        name: projects.name,
+        createdAt: projects.createdAt,
+      })
 
       return c.json({ data: { project }, error: null }, 201)
-    } catch {
+    } catch (error) {
+      if (error instanceof DrizzleQueryError && error) {
+        if (error.cause?.message.includes("UNIQUE constraint")) {
+          return c.json({ data: null, error: { message: "A project with this name already exists", statusCode: 409 } }, 409)
+        }
+      }
       return c.json({ data: null, error: { message: "Internal server error", statusCode: 500 } }, 500)
     }
   }
@@ -118,7 +127,10 @@ projectRouter.patch(
       }
 
       return c.json({ data: { project }, error: null }, 200)
-    } catch {
+    } catch (error) {
+      if (error instanceof DrizzleQueryError && error.cause?.message.includes("UNIQUE constraint")) {
+        return c.json({ data: null, error: { message: "A project with this name already exists", statusCode: 409 } }, 409)
+      }
       return c.json({ data: null, error: { message: "Internal server error", statusCode: 500 } }, 500)
     }
   }
