@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { Bindings } from "."
 import { getDB } from "./db"
-import { projects, environments } from "./db/schema"
+import { environments } from "./db/schema"
 import { requireAuth } from "./auth"
 import { zValidator } from "@hono/zod-validator"
 import z from "zod"
@@ -69,12 +69,16 @@ environmentRouter.post(
       const [environment] = await db.insert(environments).values({
         projectId: project.id,
         name,
-      }).returning()
+      }).returning({
+        id: environments.id,
+        name: environments.name,
+        createdAt: environments.createdAt,
+      })
 
       return c.json({ data: { environment }, error: null }, 201)
     } catch (error) {
       if (error instanceof DrizzleQueryError && error.cause?.message.includes("UNIQUE constraint")) {
-        return c.json({ data: null, error: { message: "An environment with this name already exists", statusCode: 409 } }, 409)
+        return c.json({ data: null, error: { message: "An environment with this name already exists in this project", statusCode: 409 } }, 409)
       }
       return c.json({ data: null, error: { message: "Internal server error", statusCode: 500 } }, 500)
     }
@@ -97,6 +101,11 @@ environmentRouter.get("/:environmentName", async (c) => {
 
     const environment = await db.query.environments.findFirst({
       where: (environments, { and, eq }) => and(eq(environments.name, environmentName), eq(environments.projectId, project.id)),
+      columns: {
+        id: true,
+        name: true,
+        createdAt: true,
+      }
     })
 
     if (!environment) {
@@ -145,7 +154,11 @@ environmentRouter.patch(
 
       const [environment] = await db.update(environments).set({ name: newName }).where(
         and(eq(environments.name, environmentName), eq(environments.projectId, project.id))
-      ).returning()
+      ).returning({
+        id: environments.id,
+        name: environments.name,
+        createdAt: environments.createdAt,
+      })
 
       if (!environment) {
         return c.json({
@@ -180,7 +193,11 @@ environmentRouter.delete("/:environmentName", async (c) => {
 
     const [environment] = await db.delete(environments).where(
       and(eq(environments.name, environmentName), eq(environments.projectId, project.id))
-    ).returning()
+    ).returning({
+      id: environments.id,
+      name: environments.name,
+      createdAt: environments.createdAt,
+    })
 
     if (!environment) {
       return c.json({

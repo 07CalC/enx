@@ -29,7 +29,10 @@ variableRouter.get("/",
     const userId = c.get("userId")
     const db = getDB(c.env.DB)
     try {
-      const variableRecords = await db.select().from(variables)
+      const variableRecords = await db.select({
+        key: variables.key,
+        value: variables.value,
+      }).from(variables)
         .leftJoin(environments, eq(variables.environmentId, environments.id))
         .leftJoin(projects, eq(environments.projectId, projects.id))
         .where(and(eq(projects.name, projectName), eq(environments.name, environmentName), eq(projects.userId, userId)))
@@ -53,10 +56,12 @@ variableRouter.post("/",
       }, 400)
     }
   }),
-  zValidator("json", z.array(z.object({
-    key: z.string().min(1),
-    value: z.string().min(1)
-  })), (result, c) => {
+  zValidator("json", z.object({
+    variables: z.array(z.object({
+      key: z.string().min(1),
+      value: z.string().min(1)
+    }))
+  }), (result, c) => {
     if (!result.success) {
       return c.json({
         data: null,
@@ -79,12 +84,15 @@ variableRouter.post("/",
       }
       const environmentId = environmentRecord.environments.id
       const insertedVariables = await db.insert(variables).values(
-        variablesData.map(variable => ({
+        variablesData.variables.map(variable => ({
           environmentId,
           key: variable.key,
           value: variable.value
         }))
-      ).returning().onConflictDoUpdate({
+      ).returning({
+        key: variables.key,
+        value: variables.value
+      }).onConflictDoUpdate({
         target: [variables.environmentId, variables.key],
         set: {
           value: sql`EXCLUDED.value`
