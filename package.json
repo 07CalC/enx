@@ -10,7 +10,7 @@
 		"cf-typegen": "wrangler types",
 		"db:migrate:dev": "drizzle-kit generate && wrangler d1 migrations apply DB --local",
 		"db:migrate": "drizzle-kit generate && wrangler d1 migrations apply DB",
-		"cli": "npm run dev --prefix cli"
+		"cli": "npm --prefix cli run dev --"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.12.4",

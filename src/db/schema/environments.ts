@@ -1,6 +1,5 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { projects } from "./projects";
-import { users } from "./users";
 import { relations } from "drizzle-orm";
 
 
