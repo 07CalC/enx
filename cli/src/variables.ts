@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { apiFetch } from "./api.ts";
 import { printTable } from "./format.ts";
 import { variableUsage } from "./usage.ts";
+import { exec } from "node:child_process";
 
 type VarArgs = {
   projectName: string;
@@ -85,7 +86,11 @@ export const handleVars = async (args: VarArgs) => {
         variables: { key: string; value: string }[];
       }>(`/projects/${projectName}/environments/${envName}/variables`, { method: "GET" });
       for (const v of res.data.variables) {
-        console.log(`export ${v.key}="${v.value}"`);
+        exec(`export ${v.key}="${v.value}"`, (error) => {
+          if (error) {
+            console.error(`Error exporting variable ${v.key}: ${error.message}`);
+          }
+        })
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -105,7 +110,9 @@ export const handleVars = async (args: VarArgs) => {
         writeFileSync(file, output + "\n", "utf-8");
         console.log(`Variables written to ${file}`);
       } else {
-        console.log(output);
+        const envFile = ".env";
+        writeFileSync(envFile, output + "\n", "utf-8");
+        console.log(`Variables written to ${envFile}`);
       }
     } catch (error) {
       if (error instanceof Error) {
