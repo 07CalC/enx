@@ -3,9 +3,6 @@ import { usage } from "./usage.ts";
 import { apiFetch } from "./api.ts";
 import { setConfig } from "./config.ts";
 
-
-
-
 export const handleAuth = async (args: string[]) => {
   if (args.length === 0) {
     usage();
@@ -43,5 +40,42 @@ export const handleAuth = async (args: string[]) => {
         console.error("An unknown error occurred.");
       }
     }
+  } else if (args[0] === "signup") {
+    const nameInput = await input({ message: "Enter your name:", required: true });
+    const emailInput = await input({ message: "Enter your email:", required: true });
+    const passwordInput = await password({ message: "Enter your password:" });
+    try {
+      const res = await apiFetch<
+        {
+          user: {
+            id: string;
+            name: string;
+            email: string;
+          };
+          token: string;
+        }
+      >("/auth/email", {
+        method: "POST",
+        body: JSON.stringify({
+          email: emailInput,
+          name: nameInput,
+          password: passwordInput,
+        }),
+      })
+      const token = res.data.token;
+      setConfig({
+        token
+      })
+      console.log(`Successfully signed up as ${res.data.user.name}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error:", error.message);
+      } else {
+        console.error("An unknown error occurred.");
+      }
+    }
+  } else {
+    usage();
+    process.exit(1);
   }
 }

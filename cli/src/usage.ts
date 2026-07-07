@@ -66,6 +66,20 @@ Variables:
 `);
 }
 
+export function apiKeyUsage() {
+  console.log(`
+API Keys:
+  enx api-key create
+      Create a new API key.
+
+  enx api-key list
+      List all API keys.
+
+  enx api-key delete
+      Delete an API key.
+`);
+}
+
 export function configUsage() {
   console.log(`
 Configuration:
@@ -89,6 +103,7 @@ Usage:
   projectUsage();
   envUsage();
   variableUsage();
+  apiKeyUsage();
   configUsage();
 
   console.log(`
