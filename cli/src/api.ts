@@ -22,9 +22,26 @@ export const apiFetch = async<T>(endpoint: string, options: RequestInit): Promis
     ...options,
     headers,
   });
-  const data = await response.json() as Response<any>;
+
+  let text: string;
+  try {
+    text = await response.text();
+  } catch {
+    throw new Error("Failed to read response from server");
+  }
+
+  let data: Response<T>;
+  try {
+    data = JSON.parse(text) as Response<T>;
+  } catch {
+    if (!response.ok) {
+      throw new Error(`Server error (${response.status}): ${text.trim().slice(0, 200)}`);
+    }
+    throw new Error(`Invalid JSON response: ${text.trim().slice(0, 200)}`);
+  }
+
   if (!response.ok) {
-    throw new Error(data.error?.message || "Unknown error");
+    throw new Error(data.error?.message || `Server error (${response.status})`);
   }
   return data;
 }
