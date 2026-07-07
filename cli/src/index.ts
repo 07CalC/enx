@@ -15,7 +15,7 @@ if (args.length === 0) {
   process.exit(1);
 }
 
-if (args[0] === "login" || args[0] === "signup") {
+if (args[0] === "login" || args[0] === "signup" || args[0] === "logout") {
   await handleAuth(args);
   process.exit(0);
 }

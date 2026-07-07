@@ -44,6 +44,7 @@ export function authUsage() {
 Usage:
   enx login                               Log in with email and password
   enx signup                              Sign up with name, email and password
+  enx logout                              Log out and clear session
 `);
 }
 

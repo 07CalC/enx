@@ -83,7 +83,14 @@ export const handleAuth = async (args: string[]) => {
         console.error("An unknown error occurred.");
       }
     }
-  } else {
+  } else if (args[0] === "logout") {
+    setConfig({
+      token: ""
+    })
+    console.log("Successfully logged out.");
+  }
+
+  else {
     usage();
     process.exit(1);
   }
