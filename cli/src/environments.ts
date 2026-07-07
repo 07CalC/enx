@@ -1,5 +1,6 @@
 import { input, confirm } from "@inquirer/prompts";
 import { apiFetch } from "./api.ts";
+import { printTable } from "./format.ts";
 import { envUsage } from "./usage.ts";
 
 type EnvArgs = {
@@ -20,7 +21,10 @@ export const handleEnv = async (args: EnvArgs) => {
         method: "POST",
         body: JSON.stringify({ name }),
       });
-      console.log(`Environment created: ${res.data.environment.name} (ID: ${res.data.environment.id})`);
+      printTable(
+        [{ header: "ID" }, { header: "Name" }, { header: "Created" }],
+        [{ id: res.data.environment.id, name: res.data.environment.name, createdAt: res.data.environment.createdAt }],
+      );
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error creating environment: ${error.message}`);
@@ -33,10 +37,10 @@ export const handleEnv = async (args: EnvArgs) => {
       const res = await apiFetch<{
         environments: { id: string; name: string; createdAt: string }[];
       }>(`/projects/${projectName}/environments`, { method: "GET" });
-      console.log(`Environments for ${projectName}:`);
-      res.data.environments.forEach((env) => {
-        console.log(`- ${env.name} (ID: ${env.id})`);
-      });
+      printTable(
+        [{ header: "ID" }, { header: "Name" }, { header: "Created" }],
+        res.data.environments.map((e) => ({ id: e.id, name: e.name, createdAt: e.createdAt })),
+      );
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error listing environments: ${error.message}`);
@@ -57,7 +61,10 @@ export const handleEnv = async (args: EnvArgs) => {
         method: "PATCH",
         body: JSON.stringify({ name: newName }),
       });
-      console.log(`Environment updated: ${res.data.environment.name} (ID: ${res.data.environment.id})`);
+      printTable(
+        [{ header: "ID" }, { header: "Name" }, { header: "Created" }],
+        [{ id: res.data.environment.id, name: res.data.environment.name, createdAt: res.data.environment.createdAt }],
+      );
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error updating environment: ${error.message}`);
@@ -81,7 +88,11 @@ export const handleEnv = async (args: EnvArgs) => {
       }>(`/projects/${projectName}/environments/${envName}`, {
         method: "DELETE",
       });
-      console.log(`Environment deleted: ${res.data.environment.name}`);
+      printTable(
+        [{ header: "ID" }, { header: "Name" }, { header: "Created" }],
+        [{ id: res.data.environment.id, name: res.data.environment.name, createdAt: res.data.environment.createdAt }],
+      );
+      console.log("Environment deleted.");
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error deleting environment: ${error.message}`);

@@ -1,5 +1,6 @@
 import { input, confirm } from "@inquirer/prompts";
 import { apiFetch } from "./api.ts";
+import { printTable } from "./format.ts";
 import { apiKeyUsage } from "./usage.ts";
 
 export const handleApiKeys = async (args: string[]) => {
@@ -17,11 +18,11 @@ export const handleApiKeys = async (args: string[]) => {
         method: "POST",
         body: JSON.stringify({ name }),
       });
-      console.log(`API key created:`);
-      console.log(`  Name:   ${res.data.apiKey.name}`);
-      console.log(`  Key:    ${res.data.apiKey.key}`);
-      console.log(`  Prefix: ${res.data.apiKey.prefix}`);
-      console.log(`\nMake sure to copy the key now. You won't be able to see it again.`);
+      printTable(
+        [{ header: "Name" }, { header: "Prefix" }, { header: "Key" }],
+        [{ name: res.data.apiKey.name, prefix: res.data.apiKey.prefix, key: res.data.apiKey.key }],
+      );
+      console.log(`Make sure to copy the key now. You won't be able to see it again.`);
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error creating API key: ${error.message}`);
@@ -38,11 +39,16 @@ export const handleApiKeys = async (args: string[]) => {
         console.log("No API keys found.");
         return;
       }
-      console.log("API keys:");
-      for (const key of res.data.apiKeys) {
-        const lastUsed = key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : "never";
-        console.log(`- ${key.name} (ID: ${key.id}, prefix: ${key.prefix}, last used: ${lastUsed})`);
-      }
+      printTable(
+        [{ header: "ID" }, { header: "Name" }, { header: "Prefix" }, { header: "Created" }, { header: "Last Used" }],
+        res.data.apiKeys.map((k) => ({
+          id: k.id,
+          name: k.name,
+          prefix: k.prefix,
+          createdAt: k.createdAt,
+          lastUsedAt: k.lastUsedAt ?? "never",
+        })),
+      );
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error listing API keys: ${error.message}`);
@@ -61,7 +67,11 @@ export const handleApiKeys = async (args: string[]) => {
       const res = await apiFetch<{
         apiKey: { id: string; name: string; prefix: string };
       }>(`/api-keys/${id}`, { method: "DELETE" });
-      console.log(`API key deleted: ${res.data.apiKey.name}`);
+      printTable(
+        [{ header: "ID" }, { header: "Name" }, { header: "Prefix" }],
+        [{ id: res.data.apiKey.id, name: res.data.apiKey.name, prefix: res.data.apiKey.prefix }],
+      );
+      console.log("API key deleted.");
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error deleting API key: ${error.message}`);

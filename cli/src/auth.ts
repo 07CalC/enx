@@ -1,6 +1,7 @@
 import { input, password } from "@inquirer/prompts";
 import { usage } from "./usage.ts";
 import { apiFetch } from "./api.ts";
+import { printTable } from "./format.ts";
 import { setConfig } from "./config.ts";
 
 export const handleAuth = async (args: string[]) => {
@@ -32,7 +33,11 @@ export const handleAuth = async (args: string[]) => {
       setConfig({
         token
       })
-      console.log(`Successfully logged in as ${res.data.user.name}`);
+      printTable(
+        [{ header: "ID" }, { header: "Name" }, { header: "Email" }],
+        [{ id: res.data.user.id, name: res.data.user.name, email: res.data.user.email }],
+      );
+      console.log("Successfully logged in.");
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error:", error.message);
@@ -66,7 +71,11 @@ export const handleAuth = async (args: string[]) => {
       setConfig({
         token
       })
-      console.log(`Successfully signed up as ${res.data.user.name}`);
+      printTable(
+        [{ header: "ID" }, { header: "Name" }, { header: "Email" }],
+        [{ id: res.data.user.id, name: res.data.user.name, email: res.data.user.email }],
+      );
+      console.log("Successfully signed up.");
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error:", error.message);

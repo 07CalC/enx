@@ -1,6 +1,7 @@
 import { input } from "@inquirer/prompts";
 import { readFileSync, writeFileSync } from "node:fs";
 import { apiFetch } from "./api.ts";
+import { printTable } from "./format.ts";
 import { variableUsage } from "./usage.ts";
 
 type VarArgs = {
@@ -28,6 +29,10 @@ export const handleVars = async (args: VarArgs) => {
           method: "POST",
           body: JSON.stringify({ variables }),
         });
+        printTable(
+          [{ header: "Key" }, { header: "Value" }],
+          res.data.variables.map((v) => ({ key: v.key, value: v.value })),
+        );
         console.log(`Created/updated ${res.data.variables.length} variable(s) from file.`);
       } catch (error) {
         if (error instanceof Error) {
@@ -46,8 +51,10 @@ export const handleVars = async (args: VarArgs) => {
           method: "POST",
           body: JSON.stringify({ variables: [{ key, value }] }),
         });
-        const v = res.data.variables[0];
-        console.log(`Variable created: ${v?.key}=${v?.value}`);
+        printTable(
+          [{ header: "Key" }, { header: "Value" }],
+          res.data.variables.map((v) => ({ key: v.key, value: v.value })),
+        );
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error creating variable: ${error.message}`);
@@ -61,10 +68,10 @@ export const handleVars = async (args: VarArgs) => {
       const res = await apiFetch<{
         variables: { key: string; value: string }[];
       }>(`/projects/${projectName}/environments/${envName}/variables`, { method: "GET" });
-      console.log(`Variables for ${projectName}/${envName}:`);
-      for (const v of res.data.variables) {
-        console.log(`- ${v.key}=${v.value}`);
-      }
+      printTable(
+        [{ header: "Key" }, { header: "Value" }],
+        res.data.variables.map((v) => ({ key: v.key, value: v.value })),
+      );
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error listing variables: ${error.message}`);

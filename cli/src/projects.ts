@@ -1,5 +1,6 @@
 import { apiFetch } from "./api.ts";
 import { projectUsage } from "./usage.ts";
+import { printTable } from "./format.ts";
 import { input, confirm } from "@inquirer/prompts"
 
 export const handleProjects = async (args: string[]) => {
@@ -21,7 +22,10 @@ export const handleProjects = async (args: string[]) => {
         body: JSON.stringify({ name }),
       })
       if (!res.error) {
-        console.log(`Project created: ${res.data.project.name} (ID: ${res.data.project.id})`)
+        printTable(
+          [{ header: "ID" }, { header: "Name" }, { header: "Created" }],
+          [{ id: res.data.project.id, name: res.data.project.name, createdAt: res.data.project.createdAt }],
+        )
       } else {
         console.error(`Error creating project: ${res.error.message}`)
       }
@@ -45,10 +49,10 @@ export const handleProjects = async (args: string[]) => {
         method: "GET",
       })
       if (!res.error) {
-        console.log("Projects:")
-        res.data.projects.forEach((project) => {
-          console.log(`- ${project.name} (ID: ${project.id})`)
-        })
+        printTable(
+          [{ header: "ID" }, { header: "Name" }, { header: "Created" }],
+          res.data.projects.map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt })),
+        )
       } else {
         console.error(`Error listing projects: ${res.error.message}`)
       }
@@ -75,7 +79,10 @@ export const handleProjects = async (args: string[]) => {
         body: JSON.stringify({ name: newName }),
       })
       if (!res.error) {
-        console.log(`Project updated: ${res.data.project.name} (ID: ${res.data.project.id})`)
+        printTable(
+          [{ header: "ID" }, { header: "Name" }, { header: "Created" }],
+          [{ id: res.data.project.id, name: res.data.project.name, createdAt: res.data.project.createdAt }],
+        )
       } else {
         console.error(`Error updating project: ${res.error.message}`)
       }
