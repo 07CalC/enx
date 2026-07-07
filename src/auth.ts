@@ -322,47 +322,62 @@ authRouter.get("/me", async (c) => {
 })
 
 export async function requireAuth(c: any, next: any) {
-  const apiKeyHeader = c.req.header("x-api-key") || c.req.header("Authorization")?.replace(/^Bearer\s+/i, "");
+  const apiKeyHeader =
+    c.req.header("x-api-key") ||
+    c.req.header("Authorization")?.replace(/^Bearer\s+/i, "");
 
+  const token = getCookie(c, "enx-token");
+  const db = getDB(c.env.DB);
+
+  // Try API key authentication first
   if (apiKeyHeader) {
     const keyHash = await hashApiKey(apiKeyHeader);
-    const db = getDB(c.env.DB);
+
     const key = await db.query.apiKeys.findFirst({
       where: (apiKeys, { eq }) => eq(apiKeys.keyHash, keyHash),
     });
 
-    if (!key) {
-      return c.json({ data: null, error: { message: "Invalid API key", statusCode: 401 } }, 401);
+    if (key) {
+      c.set("userId", key.userId);
+
+      void db
+        .update(apiKeys)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(apiKeys.id, key.id));
+
+      await next();
+      return;
     }
-
-    c.set("userId", key.userId);
-    db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, key.id)).run();
-    await next();
-    return;
   }
 
-  const token = getCookie(c, "enx-token");
-  if (!token) {
-    return c.json({ data: null, error: { message: "Not authenticated", statusCode: 401 } }, 401);
+  // Fall back to JWT authentication
+  if (token) {
+    const userId = await verifyJWT(token, c.env.JWT_SECRET);
+
+    if (userId) {
+      const user = await db.query.users.findFirst({
+        columns: {
+          id: true,
+        },
+        where: (users, { eq }) => eq(users.id, userId),
+      });
+
+      if (user) {
+        c.set("userId", userId);
+        await next();
+        return;
+      }
+    }
   }
 
-  const userId = await verifyJWT(token, c.env.JWT_SECRET);
-  if (!userId) {
-    return c.json({ data: null, error: { message: "Invalid token", statusCode: 401 } }, 401);
-  }
-
-  const db = getDB(c.env.DB);
-  const user = await db.query.users.findFirst({
-    columns: {
-      id: true,
+  return c.json(
+    {
+      data: null,
+      error: {
+        message: "Not authenticated",
+        statusCode: 401,
+      },
     },
-    where: (users, { eq }) => eq(users.id, userId),
-  });
-
-  if (!user) {
-    return c.json({ data: null, error: { message: "User not found", statusCode: 404 } }, 404);
-  }
-
-  c.set("userId", userId);
-  await next();
+    401
+  );
 }

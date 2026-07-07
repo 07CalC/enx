@@ -51,6 +51,7 @@ export function configUsage() {
   console.log(`
 Usage:
   enx config set url <url>                Set the API URL
+  enx config set api-key <key>            Save an API key for future use
 `);
 }
 

@@ -35,7 +35,16 @@ if (args[0] === "config") {
     console.log(`API URL set to ${args[3]}`);
     process.exit(0);
   }
-  console.error("Usage: enx config set url <url>");
+  if (args[1] === "set" && args[2] === "api-key") {
+    if (!args[3]) {
+      console.error("Usage: enx config set api-key <key>");
+      process.exit(1);
+    }
+    setConfig({ apiKey: args[3] });
+    console.log("API key saved to config.");
+    process.exit(0);
+  }
+  console.error("Usage: enx config set url <url> | enx config set api-key <key>");
   process.exit(1);
 }
 
