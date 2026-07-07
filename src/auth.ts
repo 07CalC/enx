@@ -329,7 +329,6 @@ export async function requireAuth(c: any, next: any) {
   const token = getCookie(c, "enx-token");
   const db = getDB(c.env.DB);
 
-  // Try API key authentication first
   if (apiKeyHeader) {
     const keyHash = await hashApiKey(apiKeyHeader);
 
@@ -340,7 +339,7 @@ export async function requireAuth(c: any, next: any) {
     if (key) {
       c.set("userId", key.userId);
 
-      void db
+      await db
         .update(apiKeys)
         .set({ lastUsedAt: new Date() })
         .where(eq(apiKeys.id, key.id));
@@ -350,7 +349,6 @@ export async function requireAuth(c: any, next: any) {
     }
   }
 
-  // Fall back to JWT authentication
   if (token) {
     const userId = await verifyJWT(token, c.env.JWT_SECRET);
 
