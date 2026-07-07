@@ -127,7 +127,7 @@ authRouter.post(
           {
             data: null,
             error: {
-              message: result.error.message,
+              message: result.error.issues[0].message,
               statusCode: 400,
             },
           },
@@ -204,7 +204,6 @@ authRouter.post(
               id: existingUser.id,
               email: existingUser.email,
               name: existingUser.name,
-              authProvider: "email",
             },
             token: jwt,
           },
@@ -250,7 +249,6 @@ authRouter.post(
             id: user.id,
             email: user.email,
             name: user.name,
-            authProvider: "email",
           },
           token: jwt,
         },
