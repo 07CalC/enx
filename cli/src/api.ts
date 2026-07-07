@@ -23,9 +23,6 @@ export const apiFetch = async<T>(endpoint: string, options: RequestInit): Promis
     headers,
   });
   const data = await response.json() as Response<any>;
-  if (response.status === 401) {
-    throw new Error("Unauthorized. Please login");
-  }
   if (!response.ok) {
     throw new Error(data.error?.message || "Unknown error");
   }

@@ -22,7 +22,7 @@ export const handleAuth = async (args: string[]) => {
           };
           token: string;
         }
-      >("/auth/email", {
+      >("/auth/email/login", {
         method: "POST",
         body: JSON.stringify({
           email: emailInput,
@@ -59,7 +59,7 @@ export const handleAuth = async (args: string[]) => {
           };
           token: string;
         }
-      >("/auth/email", {
+      >("/auth/email/signup", {
         method: "POST",
         body: JSON.stringify({
           email: emailInput,
@@ -87,7 +87,7 @@ export const handleAuth = async (args: string[]) => {
     setConfig({
       token: ""
     })
-    console.log("Successfully logged out.");
+    console.log("Successfully logged out.")
   }
 
   else {

@@ -32,8 +32,8 @@ authRouter.get("/google", async (c) => {
   }
   const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
   googleAuthUrl.search = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID ?? '',
-    redirect_uri: process.env.GOOGLE_CLIENT_REDIRECT_URL ?? '',
+    client_id: c.env.GOOGLE_CLIENT_ID,
+    redirect_uri: c.env.GOOGLE_CLIENT_REDIRECT_URL,
     response_type: 'code',
     scope: 'openid email profile',
   }).toString()
@@ -45,16 +45,18 @@ authRouter.get("/google/callback", async (c) => {
   const code = c.req.query("code")
   if (!code) {
     return c.json({ error: "Missing code" }, 400)
-  } const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+  }
+
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
       code,
-      client_id: process.env.GOOGLE_CLIENT_ID ?? '',
-      client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-      redirect_uri: process.env.GOOGLE_CLIENT_REDIRECT_URL ?? '',
+      client_id: c.env.GOOGLE_CLIENT_ID,
+      client_secret: c.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: c.env.GOOGLE_CLIENT_REDIRECT_URL,
       grant_type: 'authorization_code',
     }),
   })
@@ -97,7 +99,7 @@ authRouter.get("/google/callback", async (c) => {
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   })
 
-  c.json({
+  return c.json({
     data: {
       user: {
         id: user.id,
@@ -113,12 +115,12 @@ authRouter.get("/google/callback", async (c) => {
 
 
 authRouter.post(
-  "/email",
+  "/email/signup",
   zValidator(
     "json",
     z.object({
       email: z.email(),
-      name: z.string().min(1).optional(),
+      name: z.string().min(1),
       password: z.string().min(6),
     }),
     (result, c) => {
@@ -143,15 +145,14 @@ authRouter.post(
     const existingUser = await db.query.users.findFirst({
       columns: {
         id: true,
-        email: true,
-        name: true,
         passwordHash: true,
+        authProvider: true,
       },
       where: (users, { eq }) => eq(users.email, email),
     });
 
     if (existingUser) {
-      if (!existingUser.passwordHash) {
+      if (existingUser.authProvider !== "email") {
         return c.json(
           {
             data: null,
@@ -165,51 +166,15 @@ authRouter.post(
         );
       }
 
-      const valid = await verifyPassword(
-        password,
-        existingUser.passwordHash
-      );
-
-      if (!valid) {
-        return c.json(
-          {
-            data: null,
-            error: {
-              message: "Invalid email or password",
-              statusCode: 401,
-            },
-          },
-          401
-        );
-      }
-
-      const jwt = await signJWT(
-        existingUser.id,
-        c.env.JWT_SECRET
-      );
-
-      setCookie(c, "enx-token", jwt, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "Lax",
-        expires: new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000
-        ),
-      });
-
       return c.json(
         {
-          data: {
-            user: {
-              id: existingUser.id,
-              email: existingUser.email,
-              name: existingUser.name,
-            },
-            token: jwt,
+          data: null,
+          error: {
+            message: "An account with this email already exists.",
+            statusCode: 409,
           },
-          error: null,
         },
-        200
+        409
       );
     }
 
@@ -221,6 +186,7 @@ authRouter.post(
         email,
         name,
         passwordHash,
+        authProvider: "email",
       })
       .returning({
         id: users.id,
@@ -255,6 +221,121 @@ authRouter.post(
         error: null,
       },
       201
+    );
+  }
+);
+
+
+authRouter.post(
+  "/email/login",
+  zValidator(
+    "json",
+    z.object({
+      email: z.email(),
+      password: z.string().min(6),
+    }),
+    (result, c) => {
+      if (!result.success) {
+        return c.json(
+          {
+            data: null,
+            error: {
+              message: result.error.issues[0].message,
+              statusCode: 400,
+            },
+          },
+          400
+        );
+      }
+    }
+  ),
+  async (c) => {
+    const { email, password } = c.req.valid("json");
+    const db = getDB(c.env.DB);
+
+    const existingUser = await db.query.users.findFirst({
+      columns: {
+        id: true,
+        email: true,
+        name: true,
+        passwordHash: true,
+        authProvider: true,
+      },
+      where: (users, { eq }) => eq(users.email, email),
+    });
+
+    if (!existingUser) {
+      return c.json(
+        {
+          data: null,
+          error: {
+            message: "Invalid email or password",
+            statusCode: 401,
+          },
+        },
+        401
+      );
+    }
+
+    if (!existingUser.passwordHash || existingUser.authProvider !== "email") {
+      return c.json(
+        {
+          data: null,
+          error: {
+            message:
+              "This account was created using another sign-in method.",
+            statusCode: 400,
+          },
+        },
+        400
+      );
+    }
+
+    const valid = await verifyPassword(
+      password,
+      existingUser.passwordHash
+    );
+
+    if (!valid) {
+      return c.json(
+        {
+          data: null,
+          error: {
+            message: "Invalid email or password",
+            statusCode: 401,
+          },
+        },
+        401
+      );
+    }
+
+    const jwt = await signJWT(
+      existingUser.id,
+      c.env.JWT_SECRET
+    );
+
+    setCookie(c, "enx-token", jwt, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Lax",
+      expires: new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      ),
+    });
+
+    return c.json(
+      {
+        data: {
+          user: {
+            id: existingUser.id,
+            email: existingUser.email,
+            name: existingUser.name,
+          },
+          token: jwt,
+        },
+        error: null,
+      },
+      200
     );
   }
 );
