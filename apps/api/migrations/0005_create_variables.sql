@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS variables (
   key TEXT NOT NULL,
-  value TEXT NOT NULL
-  environmentID INTEGER NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+  value TEXT NOT NULL,
+  environmentID TEXT NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
   PRIMARY KEY (key, environmentID)
 );
 
