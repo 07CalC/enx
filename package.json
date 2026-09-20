@@ -1,0 +1,7 @@
+{
+  "name": "enx",
+  "type": "module",
+  "scripts": {
+    "migrate": "node scripts/migrate.js"
+  }
+}

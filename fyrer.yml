@@ -1,0 +1,25 @@
+version: 1               
+cache:
+  provider: local       
+packages:            
+  - name: api
+    root: ./apps/api/
+    tasks:
+      dev: 
+        cmd: bun dev
+        depends_on: 
+          - migrate
+        persistent: true
+      deploy: 
+        cmd: bun run deploy
+        persistent: false
+      migrate:
+        cmd: bun run migrate
+        cwd: "$WORKSPACE"
+        persistent: false
+      setup: 
+        cmd: bun install && bunx wrangler types
+        persistent: false
+
+
+

@@ -1,0 +1,17 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-16",
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "enx",
+			"database_name": "enx",
+			"database_id": "92ca6b8d-3151-4e1d-8da5-f42c4837726e"
+		}
+	]
+}
